@@ -1,0 +1,38 @@
+name: Rotina diária Tiny
+
+on:
+  schedule:
+    # 10:00 UTC = 07:00 no horário de Brasília (UTC-3, sem horário de verão
+    # atualmente no Brasil). Ajuste o horário mudando os dois primeiros
+    # números (minuto hora); mantenha os "* * *" como estão.
+    - cron: '0 10 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Rodar integração (aplicando correções)
+        env:
+          TINY_CLIENT_ID: ${{ secrets.TINY_CLIENT_ID }}
+          TINY_CLIENT_SECRET: ${{ secrets.TINY_CLIENT_SECRET }}
+          TINY_REFRESH_TOKEN: ${{ secrets.TINY_REFRESH_TOKEN }}
+          TINY_REDIRECT_URI: ${{ secrets.TINY_REDIRECT_URI }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: python main.py --aplicar
+
+      - name: Guardar relatório do dia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-${{ github.run_id }}
+          path: logs/*.json
+          retention-days: 30
