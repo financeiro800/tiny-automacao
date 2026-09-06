@@ -24,24 +24,30 @@ class TinyClient:
 
     def _request(self, method: str, path: str, **kwargs) -> dict:
         url = f"{config.TINY_API_BASE_URL}{path}"
+        ultima_resposta = None
         for tentativa in range(3):
             resp = requests.request(method, url, headers=self._headers(), **kwargs)
+            ultima_resposta = resp
 
             if resp.status_code == 401:
-                # token expirado no meio da execução: renova e tenta de novo
                 self._token = auth.get_access_token()
                 continue
 
             if resp.status_code == 429:
                 espera = int(resp.headers.get("Retry-After", 5))
-                print(f"[client] rate limit atingido, aguardando {espera}s...")
+                print(f"[client] HTTP 429 (tentativa {tentativa + 1}/3). Corpo da resposta: {resp.text[:500]!r}")
+                print(f"[client] aguardando {espera}s antes de tentar de novo...")
                 time.sleep(espera)
                 continue
+
+            if not resp.ok:
+                print(f"[client] erro {resp.status_code} ao chamar {url}: {resp.text[:1000]!r}")
 
             resp.raise_for_status()
             return resp.json() if resp.content else {}
 
-        raise RuntimeError(f"Falha ao chamar {url} após 3 tentativas.")
+        detalhe = f" Última resposta: {ultima_resposta.status_code} {ultima_resposta.text[:500]!r}" if ultima_resposta is not None else ""
+        raise RuntimeError(f"Falha ao chamar {url} após 3 tentativas.{detalhe}")
 
     def get(self, path: str, params: dict = None) -> dict:
         return self._request("GET", path, params=params or {})
