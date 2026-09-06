@@ -2,11 +2,17 @@ name: Rotina diária Tiny
 
 on:
   schedule:
-    # 10:00 UTC = 07:00 no horário de Brasília (UTC-3, sem horário de verão
-    # atualmente no Brasil). Ajuste o horário mudando os dois primeiros
-    # números (minuto hora); mantenha os "* * *" como estão.
     - cron: '0 10 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Modo (rodando manualmente). O agendamento automático sempre usa "aplicar".'
+        type: choice
+        options:
+          - simulacao
+          - diagnostico
+          - aplicar
+        default: simulacao
 
 jobs:
   rodar:
@@ -20,14 +26,23 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Rodar integração (aplicando correções)
+      - name: Rodar integração
         env:
-          TINY_CLIENT_ID: ${{ secrets.TINY_CLIENT_ID }}
+          TINY_CLIENT_ID: ${{ vars.TINY_CLIENT_ID }}
           TINY_CLIENT_SECRET: ${{ secrets.TINY_CLIENT_SECRET }}
           TINY_REFRESH_TOKEN: ${{ secrets.TINY_REFRESH_TOKEN }}
-          TINY_REDIRECT_URI: ${{ secrets.TINY_REDIRECT_URI }}
+          TINY_REDIRECT_URI: ${{ vars.TINY_REDIRECT_URI }}
           GH_PAT: ${{ secrets.GH_PAT }}
-        run: python main.py --aplicar
+        run: |
+          MODO="${{ github.event.inputs.modo || 'aplicar' }}"
+          echo "Rodando em modo: $MODO"
+          if [ "$MODO" = "diagnostico" ]; then
+            python main.py --diagnostico
+          elif [ "$MODO" = "simulacao" ]; then
+            python main.py
+          else
+            python main.py --aplicar
+          fi
 
       - name: Guardar relatório do dia
         if: always()
