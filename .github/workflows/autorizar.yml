@@ -22,9 +22,9 @@ jobs:
 
       - name: Autorizar aplicação no Tiny
         env:
-          TINY_CLIENT_ID: ${{ secrets.TINY_CLIENT_ID }}
+          TINY_CLIENT_ID: ${{ vars.TINY_CLIENT_ID }}
           TINY_CLIENT_SECRET: ${{ secrets.TINY_CLIENT_SECRET }}
-          TINY_REDIRECT_URI: ${{ secrets.TINY_REDIRECT_URI }}
+          TINY_REDIRECT_URI: ${{ vars.TINY_REDIRECT_URI }}
           GH_PAT: ${{ secrets.GH_PAT }}
           CODE_INPUT: ${{ github.event.inputs.code }}
         run: python autorizar_actions.py
