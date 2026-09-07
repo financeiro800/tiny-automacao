@@ -20,6 +20,8 @@ class TinyClient:
         return {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) integracao-tiny-automacao/1.0",
+            "Accept": "application/json",
         }
 
     def _request(self, method: str, path: str, **kwargs) -> dict:
@@ -59,10 +61,6 @@ class TinyClient:
         return self._request("PUT", path, json=json_body or {})
 
     def listar_todas_paginas(self, path: str, params: dict = None, campo_itens: str = "itens"):
-        """
-        Percorre todas as páginas de um endpoint de listagem e retorna a
-        lista completa de itens (a API do Tiny pagina os resultados).
-        """
         params = dict(params or {})
         params.setdefault("limit", 100)
         offset = 0
