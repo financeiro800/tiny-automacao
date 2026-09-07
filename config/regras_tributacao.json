@@ -1,31 +1,24 @@
 {
-  "_comentario": "AJUSTE ESTE ARQUIVO com as regras reais do seu catálogo. Cada regra descreve o valor CORRETO esperado para um grupo de produtos. O script compara o cadastro atual no Tiny com essas regras e reporta (ou corrige) divergências.",
+  "_comentario": "AJUSTE ESTE ARQUIVO com as regras reais do seu catálogo. Campos suportados pela API do Tiny v3 para produtos: ncm, origem (raiz) e classeIPI/valorIPIFixo/gtinEmbalagem (dentro de tributacao). CST de ICMS/PIS/COFINS NAO é editável por produto nesta API — é calculado na nota fiscal.",
 
   "regra_padrao": {
-    "origem": "0",
-    "cst_icms": "102",
-    "cst_pis": "07",
-    "cst_cofins": "07"
+    "origem": "0"
   },
 
   "por_categoria": {
     "EXEMPLO-ELETRONICOS": {
       "ncm": "85176231",
-      "cest": "2104700",
-      "origem": "0",
-      "cst_icms": "102"
+      "origem": "0"
     },
     "EXEMPLO-VESTUARIO": {
       "ncm": "61091000",
-      "origem": "0",
-      "cst_icms": "102"
+      "origem": "0"
     }
   },
 
   "por_sku": {
     "EXEMPLO-SKU-0001": {
-      "ncm": "85176231",
-      "cest": "2104700"
+      "ncm": "85176231"
     }
   }
 }
