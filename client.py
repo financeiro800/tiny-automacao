@@ -1,13 +1,44 @@
 """
-Cliente HTTP genérico para a API v3 do Tiny (erp.tiny.com.br/public-api/v3).
-Cuida de: header de autenticação, paginação automática e espera em caso
-de rate limit (HTTP 429).
+Cliente HTTP para a API v3 do Tiny (erp.tiny.com.br/public-api/v3).
+
+IMPORTANTE: usa o binário curl (via subprocess) em vez da biblioteca
+requests do Python. Na pratica, descobrimos que a protecao anti-bot da
+Cloudflare na frente da API do Tiny bloqueia (HTTP 429, corpo vazio) as
+requisicoes feitas pela biblioteca requests/urllib3, mesmo vindas do mesmo
+aparelho/rede onde um curl comum funciona normalmente. Por isso as
+chamadas para erp.tiny.com.br sao feitas via curl aqui.
 """
+import json
+import subprocess
 import time
-import requests
+import urllib.parse
 
 import config
 import auth
+
+
+def _curl(method: str, url: str, headers: dict, params: dict = None, json_body: dict = None, timeout: int = 30):
+    if params:
+        url = f"{url}?{urllib.parse.urlencode(params)}"
+
+    cmd = ["curl", "-s", "-S", "--max-time", str(timeout), "-X", method, "-w", "\n%{http_code}"]
+    for chave, valor in headers.items():
+        cmd += ["-H", f"{chave}: {valor}"]
+    if json_body is not None:
+        cmd += ["--data-raw", json.dumps(json_body)]
+    cmd.append(url)
+
+    resultado = subprocess.run(cmd, capture_output=True, text=True)
+    if resultado.returncode != 0:
+        raise RuntimeError(f"curl falhou (codigo {resultado.returncode}): {resultado.stderr.strip()}")
+
+    saida = resultado.stdout
+    corpo, _, codigo_str = saida.rpartition("\n")
+    try:
+        codigo = int(codigo_str.strip())
+    except ValueError:
+        codigo = 0
+    return codigo, corpo
 
 
 class TinyClient:
@@ -20,45 +51,43 @@ class TinyClient:
         return {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) integracao-tiny-automacao/1.0",
             "Accept": "application/json",
         }
 
-    def _request(self, method: str, path: str, **kwargs) -> dict:
+    def _request(self, method: str, path: str, params: dict = None, json_body: dict = None) -> dict:
         url = f"{config.TINY_API_BASE_URL}{path}"
-        ultima_resposta = None
-        for tentativa in range(3):
-            resp = requests.request(method, url, headers=self._headers(), **kwargs)
-            ultima_resposta = resp
+        ultimo_codigo, ultimo_corpo = None, ""
 
-            if resp.status_code == 401:
+        for tentativa in range(3):
+            codigo, corpo = _curl(method, url, self._headers(), params=params, json_body=json_body)
+            ultimo_codigo, ultimo_corpo = codigo, corpo
+
+            if codigo == 401:
                 self._token = auth.get_access_token()
                 continue
 
-            if resp.status_code == 429:
-                espera = int(resp.headers.get("Retry-After", 5))
-                print(f"[client] HTTP 429 (tentativa {tentativa + 1}/3). Corpo da resposta: {resp.text[:500]!r}")
-                print(f"[client] aguardando {espera}s antes de tentar de novo...")
-                time.sleep(espera)
+            if codigo == 429:
+                print(f"[client] HTTP 429 (tentativa {tentativa + 1}/3). Corpo: {corpo[:500]!r}")
+                print("[client] aguardando 5s antes de tentar de novo...")
+                time.sleep(5)
                 continue
 
-            if not resp.ok:
-                print(f"[client] erro {resp.status_code} ao chamar {url}: {resp.text[:1000]!r}")
+            if codigo >= 400:
+                print(f"[client] erro {codigo} ao chamar {url}: {corpo[:1000]!r}")
+                raise RuntimeError(f"HTTP {codigo} ao chamar {url}: {corpo[:500]!r}")
 
-            resp.raise_for_status()
-            return resp.json() if resp.content else {}
+            return json.loads(corpo) if corpo.strip() else {}
 
-        detalhe = f" Última resposta: {ultima_resposta.status_code} {ultima_resposta.text[:500]!r}" if ultima_resposta is not None else ""
-        raise RuntimeError(f"Falha ao chamar {url} após 3 tentativas.{detalhe}")
+        raise RuntimeError(f"Falha ao chamar {url} apos 3 tentativas. Ultima resposta: {ultimo_codigo} {ultimo_corpo[:500]!r}")
 
     def get(self, path: str, params: dict = None) -> dict:
         return self._request("GET", path, params=params or {})
 
     def post(self, path: str, json_body: dict = None) -> dict:
-        return self._request("POST", path, json=json_body or {})
+        return self._request("POST", path, json_body=json_body or {})
 
     def put(self, path: str, json_body: dict = None) -> dict:
-        return self._request("PUT", path, json=json_body or {})
+        return self._request("PUT", path, json_body=json_body or {})
 
     def listar_todas_paginas(self, path: str, params: dict = None, campo_itens: str = "itens"):
         params = dict(params or {})

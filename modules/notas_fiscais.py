@@ -1,17 +1,17 @@
 """
 PRIORIDADE 2 — Notas fiscais (NF-e)
 
-Esqueleto pronto para a próxima etapa. Endpoints já confirmados na API v3
-(categoria "Notas Fiscais", 18 rotas: emissão, consulta, XML, cancelamento).
-
-Ideias de automação para detalharmos juntos:
-  - Listar pedidos faturados sem NF-e emitida e emitir automaticamente
-  - Checar notas rejeitadas pela SEFAZ e reenviar após correção
-  - Baixar XML/DANFE das notas do dia para arquivamento
+DECISAO: a geracao/autorizacao da nota fiscal a partir do pedido fica por
+conta da automacao NATIVA do Tiny (Configuracoes > Notas Fiscais >
+Automacoes > "Gerar nota fiscal automaticamente ao aprovar pedido" +
+"Autorizar automaticamente notas fiscais geradas a partir da venda"),
+em vez de um script customizado aqui. Esse modulo fica como stub
+intencionalmente vazio - o trabalho relevante deste projeto pra notas
+fiscais e indireto: o modulo de tributacao (prioridade 1) mantem NCM e
+origem corretos no produto ANTES do pedido ser aprovado, que e o dado
+que a nota gerada automaticamente pelo Tiny vai usar.
 """
 
 
 def rodar(client, aplicar: bool = False) -> list:
-    # TODO: implementar na próxima fase, junto com você definindo as regras
-    # de quando uma nota deve ser emitida/reemitida automaticamente.
     return []
